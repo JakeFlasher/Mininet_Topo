@@ -7,109 +7,65 @@ from mininet.log import setLogLevel, info
 from mininet.link import Link, Intf, TCLink
 from mininet.topo import Topo
 from mininet.util import dumpNodeConnections
-import logging
-import os 
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger( __name__ )
 
-class FatTree(Topo):
-    logger.debug("Class FatTree")
+class Fattree(Topo):
     CoreSwitchList = []
     AggSwitchList = []
     EdgeSwitchList = []
     HostList = []
-    _num = 0
-    def __init__(self):
-        logger.debug("Class FatTree init")
-        _num = 4
 
-        self._num = _num
-        self._coreLayer = _num
-        self._aggLayer = _num * _num / 2
-        self._edgeLayer = self._aggLayer
-        self._host = self._edgeLayer * _num / 2
-
-
+    def __init__(self, k=4, density=2):
+        self._pod = k
+        self._CoreLayer = (k/2)**2
+        self._AggLayer = k*k/2
+        self._EdgeLayer = k*k/2
+        self._density = density
+        self._Host = self._EdgeLayer * density
         #Init Topo
         Topo.__init__(self)
+	self.createTopo()
+	self.createLink()
 
-        logger.debug("Start create Core Layer Swich")
-        self.createCoreLayerSwitch(self._coreLayer)
-        logger.debug("Start create Agg Layer Swich ")
-        self.createAggLayerSwitch(self._aggLayer)
-        logger.debug("Start create Edge Layer Swich ")
-        self.createEdgeLayerSwitch(self._edgeLayer)
-        logger.debug("Start create Host")
-        self.createHost(self._host)
-
-        self.createLink()
+    def createTopo(self):
+        self.createCoreLayer(self._CoreLayer)
+        self.createAggLayer(self._AggLayer)
+        self.createEdgeLayer(self._EdgeLayer)
+        self.createHost(self._Host)
     """
     Create Switch and Host
     """
+    def _addSwitch(self, num, level, switch_list):
+        for x in xrange(1, num+1):
+            switch_list.append(self.addSwitch(level + str(x)))
 
-    def createCoreLayerSwitch(self, NUMBER):
-        logger.debug("Create Core Layer")
-        for x in range(1, NUMBER+1):
-            PREFIX = "C_00"
-            if x >= int(10):
-                PREFIX = "C_0"
-            self.CoreSwitchList.append(self.addSwitch(PREFIX + str(x)))
+    def createCoreLayer(self, num):
+        self._addSwitch(num, 'c', self.CoreSwitchList)
 
-    def createAggLayerSwitch(self, NUMBER):
-        logger.debug( "Create Agg Layer")
-        for x in range(1, NUMBER+1):
-            PREFIX = "A_00"
-            if x >= int(10):
-                PREFIX = "A_0"
-            self.AggSwitchList.append(self.addSwitch(PREFIX + str(x)))
+    def createAggLayer(self, num):
+        self._addSwitch(num, 'a', self.AggSwitchList)
 
-    def createEdgeLayerSwitch(self, NUMBER):
-        logger.debug("Create Edge Layer")
-        for x in range(1, NUMBER+1):
-            PREFIX = "E_00"
-            if x >= int(10):
-                PREFIX = "E_0"
-            self.EdgeSwitchList.append(self.addSwitch(PREFIX + str(x)))
+    def createEdgeLayer(self, num):
+        self._addSwitch(num, 'e', self.EdgeSwitchList)
 
-    def createHost(self, NUMBER):
-        logger.debug("Create Host")
-        for x in range(1, NUMBER+1):
-            PREFIX = "H_00"
-            if x >= int(10):
-                PREFIX = "H_0"
-            self.HostList.append(self.addHost(PREFIX + str(x))) 
-
+    def createHost(self, num):
+        for x in xrange(1, num+1):
+            self.HostList.append(self.addHost('h' + str(x)))
     """
-    Create Link 
+    Add Link
     """
     def createLink(self):
-        logger.debug("Create Core to Agg")
-        #for x in range(0, self._coreLayer):
-        #    for y in range(x%2,self._aggLayer,self._coreLayer/2):
-        #        self.addLink(self.AggSwitchList[y], self.CoreSwitchList[x])
-        for x in range(0, self._aggLayer, 2):
-            self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x])
-            self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x])
-        for x in range(1, self._aggLayer, 2):
-            self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x])
-            self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x])
+	for x in xrange(0, self._CoreLayer):
+            for y in xrange(x%(self._pod/2), self._AggLayer, self._pod/2):
+                self.addLink(self.CoreSwitchList[x],self.AggSwitchList[y])
 
-        logger.debug("Create Agg to Edge")
-        for x in range(0, self._aggLayer, 2):
-         #    for y in range(x, x+2):
-         #       for z in range(x, x+2):
-         #           self.addLink(self.AggSwitchList[y], self.EdgeSwitchList[z])
-            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x])
-            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1])
-            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x])
-            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1])
+        for x in xrange(0, self._AggLayer, self._pod/2):
+            for i in xrange(0, self._pod/2):
+                for j in xrange(0, self._pod/2):
+                    self.addLink(self.AggSwitchList[x+i], self.EdgeSwitchList[x+j])
 
-        logger.debug("Create Edge to Host")
-        for x in range(0, self._edgeLayer):
-            ## limit = 2 * x + 1 
-            self.addLink(self.EdgeSwitchList[x], self.HostList[2 * x])
-            self.addLink(self.EdgeSwitchList[x], self.HostList[2 * x + 1])
+        for x in xrange(0, self._EdgeLayer):
+            for i in xrange(0, self._density):
+                self.addLink(self.EdgeSwitchList[x],self.HostList[self._density * x + i])
 
-
-topos = { 'fattree': ( lambda: FatTree() ) }
+topos = { 'fattree': ( lambda: Fattree() ) }
