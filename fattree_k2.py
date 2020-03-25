@@ -21,7 +21,7 @@ class MyTopo( Topo ):
  
         # Initialize topology
         Topo.__init__( self )
-        L1 = 2
+        L1 = 4
         L2 = L1 * 2 
         L3 = L2
         c = []
@@ -46,7 +46,7 @@ class MyTopo( Topo ):
         # add links between core and aggregation ovs
         for i in range( L1 ):
                 sw1 = c[i]
-                for sw2 in a[i/2::L1/2]:
+                for sw2 in a[i%2::L1/2]:
                 # self.addLink(sw2, sw1, bw=10, delay='5ms', loss=10, max_queue_size=1000, use_htb=True)
 			            self.addLink( sw2, sw1 )
  

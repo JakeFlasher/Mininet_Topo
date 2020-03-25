@@ -85,25 +85,25 @@ class FatTree(Topo):
     """
     def createLink(self):
         logger.debug("Create Core to Agg")
-        for x in range(0, self._coreLayer):
-            for y in range(x%2,self._aggLayer,self._coreLayer/2):
-                self.addLink(self.AggSwitchList[y], self.CoreSwitchList[x])
-        #for x in range(0, self._aggLayer, 2):
-        #    self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x])
-        #    self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x])
-        #for x in range(1, self._aggLayer, 2):
-        #    self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x])
-        #    self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x])
+        #for x in range(0, self._coreLayer):
+        #    for y in range(x%2,self._aggLayer,self._coreLayer/2):
+        #        self.addLink(self.AggSwitchList[y], self.CoreSwitchList[x])
+        for x in range(0, self._aggLayer, 2):
+            self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x])
+            self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x])
+        for x in range(1, self._aggLayer, 2):
+            self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x])
+            self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x])
 
         logger.debug("Create Agg to Edge")
         for x in range(0, self._aggLayer, 2):
-            for y in range(x, x+2):
-                for z in range(x, x+2):
-                    self.addLink(self.AggSwitchList[y], self.EdgeSwitchList[z])
-         #   self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x])
-         #   self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1])
-         #   self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x])
-         #   self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1])
+         #    for y in range(x, x+2):
+         #       for z in range(x, x+2):
+         #           self.addLink(self.AggSwitchList[y], self.EdgeSwitchList[z])
+            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x])
+            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1])
+            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x])
+            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1])
 
         logger.debug("Create Edge to Host")
         for x in range(0, self._edgeLayer):
