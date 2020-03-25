@@ -6,6 +6,7 @@ Adding the 'topos' dict with a key/value pair to generate our newly defined
 topology enables one to pass in '--topo=mytopo' from the command line.
 """
  
+from mininet.log import setLogLevel
 from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.node import RemoteController,CPULimitedHost
@@ -63,3 +64,19 @@ class MyTopo( Topo ):
                 	self.addLink( sw1, host )
                 	count += 1
 topos = { 'mytopo': ( lambda: MyTopo() ) }
+
+def simpleTest():
+    "Create and test a simple network"
+    topo = MyTopo()
+    net = Mininet( topo, controller=RemoteController, host=CPULimitedHost, link=TCLink )
+    net.addController( 'c0', controller=RemoteController, ip='192.168.142.50', port=6653 )
+    net.start()
+    print "Dumping host connections"
+    dumpNodeConnections(net.hosts )
+    print "Testing network connectivity"
+    net.pingAll()
+    print "Testing bandwidth between h1 with h2, h3, h5"
+    h1, h2 = net.get( 'h1', 'h2' )
+    net.iperf( ( h1, h2 ) )
+    h1, h3 = net.get( 'h1', 'h3' )
+                   
