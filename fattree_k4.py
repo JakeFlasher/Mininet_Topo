@@ -51,33 +51,33 @@ class FatTree(Topo):
     def createCoreLayerSwitch(self, NUMBER):
         logger.debug("Create Core Layer")
         for x in range(1, NUMBER+1):
-            PREFIX = "Core_10"
+            PREFIX = "C_00"
             if x >= int(10):
-                PREFIX = "1"
+                PREFIX = "C_0"
             self.CoreSwitchList.append(self.addSwitch(PREFIX + str(x)))
 
     def createAggLayerSwitch(self, NUMBER):
         logger.debug( "Create Agg Layer")
         for x in range(1, NUMBER+1):
-            PREFIX = "Agg_20"
+            PREFIX = "A_00"
             if x >= int(10):
-                PREFIX = "2"
+                PREFIX = "A_0"
             self.AggSwitchList.append(self.addSwitch(PREFIX + str(x)))
 
     def createEdgeLayerSwitch(self, NUMBER):
         logger.debug("Create Edge Layer")
         for x in range(1, NUMBER+1):
-            PREFIX = "Edge_30"
+            PREFIX = "E_00"
             if x >= int(10):
-                PREFIX = "3"
+                PREFIX = "E_0"
             self.EdgeSwitchList.append(self.addSwitch(PREFIX + str(x)))
 
     def createHost(self, NUMBER):
         logger.debug("Create Host")
         for x in range(1, NUMBER+1):
-            PREFIX = "Host_40"
+            PREFIX = "H_00"
             if x >= int(10):
-                PREFIX = "4"
+                PREFIX = "H_0"
             self.HostList.append(self.addHost(PREFIX + str(x))) 
 
     """
@@ -86,8 +86,8 @@ class FatTree(Topo):
     def createLink(self):
         logger.debug("Create Core to Agg")
         for x in range(0, self._coreLayer):
-            for y in range(x%2::self._coreLayer/2):
-                self.addLink(self.CoreSwitchList[x], self.AggSwitchList[y])
+            for y in range(x%2,self._aggLayer,self._coreLayer/2):
+                self.addLink(self.AggSwitchList[y], self.CoreSwitchList[x])
         #for x in range(0, self._aggLayer, 2):
         #    self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x])
         #    self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x])
@@ -99,7 +99,7 @@ class FatTree(Topo):
         for x in range(0, self._aggLayer, 2):
             for y in range(x, x+2):
                 for z in range(x, x+2):
-                    self.addLink(self.AggSwitchList[y], self.Edge[z])
+                    self.addLink(self.AggSwitchList[y], self.EdgeSwitchList[z])
          #   self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x])
          #   self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1])
          #   self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x])
@@ -112,4 +112,4 @@ class FatTree(Topo):
             self.addLink(self.EdgeSwitchList[x], self.HostList[2 * x + 1])
 
 
-topos = { 'fattree1': ( lambda: FatTree() ) }
+topos = { 'fattree': ( lambda: FatTree() ) }
