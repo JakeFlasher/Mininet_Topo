@@ -13,35 +13,35 @@ import os
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger( __name__ )
 
-class HugeTopo(Topo):
-    logger.debug("Class HugeTopo")
+class FatTree(Topo):
+    logger.debug("Class FatTree")
     CoreSwitchList = []
     AggSwitchList = []
     EdgeSwitchList = []
     HostList = []
-    iNUMBER = 0
+    _num = 0
     def __init__(self):
-        logger.debug("Class HugeTopo init")
-        iNUMBER = 4
+        logger.debug("Class FatTree init")
+        _num = 4
 
-        self.iNUMBER = iNUMBER
-        self.iCoreLayerSwitch = iNUMBER
-        self.iAggLayerSwitch = iNUMBER * 2
-        self.iEdgeLayerSwitch = iNUMBER * 2
-        self.iHost = self.iEdgeLayerSwitch * 2 
+        self._num = _num
+        self._coreLayer = _num
+        self._aggLayer = _num * _num / 2
+        self._edgeLayer = self._aggLayer
+        self._host = self._edgeLayer * _num / 2
 
 
         #Init Topo
         Topo.__init__(self)
 
         logger.debug("Start create Core Layer Swich")
-        self.createCoreLayerSwitch(self.iCoreLayerSwitch)
+        self.createCoreLayerSwitch(self._coreLayer)
         logger.debug("Start create Agg Layer Swich ")
-        self.createAggLayerSwitch(self.iAggLayerSwitch)
+        self.createAggLayerSwitch(self._aggLayer)
         logger.debug("Start create Edge Layer Swich ")
-        self.createEdgeLayerSwitch(self.iEdgeLayerSwitch)
+        self.createEdgeLayerSwitch(self._edgeLayer)
         logger.debug("Start create Host")
-        self.createHost(self.iHost)
+        self.createHost(self._host)
 
         self.createLink()
     """
@@ -51,33 +51,33 @@ class HugeTopo(Topo):
     def createCoreLayerSwitch(self, NUMBER):
         logger.debug("Create Core Layer")
         for x in range(1, NUMBER+1):
-            PREFIX = "100"
+            PREFIX = "Core_10"
             if x >= int(10):
-                PREFIX = "10"
+                PREFIX = "1"
             self.CoreSwitchList.append(self.addSwitch(PREFIX + str(x)))
 
     def createAggLayerSwitch(self, NUMBER):
         logger.debug( "Create Agg Layer")
         for x in range(1, NUMBER+1):
-            PREFIX = "200"
+            PREFIX = "Agg_20"
             if x >= int(10):
-                PREFIX = "20"
+                PREFIX = "2"
             self.AggSwitchList.append(self.addSwitch(PREFIX + str(x)))
 
     def createEdgeLayerSwitch(self, NUMBER):
         logger.debug("Create Edge Layer")
         for x in range(1, NUMBER+1):
-            PREFIX = "300"
+            PREFIX = "Edge_30"
             if x >= int(10):
-                PREFIX = "30"
+                PREFIX = "3"
             self.EdgeSwitchList.append(self.addSwitch(PREFIX + str(x)))
 
     def createHost(self, NUMBER):
         logger.debug("Create Host")
         for x in range(1, NUMBER+1):
-            PREFIX = "400"
+            PREFIX = "Host_40"
             if x >= int(10):
-                PREFIX = "40"
+                PREFIX = "4"
             self.HostList.append(self.addHost(PREFIX + str(x))) 
 
     """
@@ -85,25 +85,31 @@ class HugeTopo(Topo):
     """
     def createLink(self):
         logger.debug("Create Core to Agg")
-        for x in range(0, self.iAggLayerSwitch, 2):
-            self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x])
-            self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x])
-        for x in range(1, self.iAggLayerSwitch, 2):
-            self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x])
-            self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x])
+        for x in range(0, self._coreLayer):
+            for y in range(x%2::self._coreLayer/2):
+                self.addLink(self.CoreSwitchList[x], self.AggSwitchList[y])
+        #for x in range(0, self._aggLayer, 2):
+        #    self.addLink(self.CoreSwitchList[0], self.AggSwitchList[x])
+        #    self.addLink(self.CoreSwitchList[1], self.AggSwitchList[x])
+        #for x in range(1, self._aggLayer, 2):
+        #    self.addLink(self.CoreSwitchList[2], self.AggSwitchList[x])
+        #    self.addLink(self.CoreSwitchList[3], self.AggSwitchList[x])
 
         logger.debug("Create Agg to Edge")
-        for x in range(0, self.iAggLayerSwitch, 2):
-            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x])
-            self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1])
-            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x])
-            self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1])
+        for x in range(0, self._aggLayer, 2):
+            for y in range(x, x+2):
+                for z in range(x, x+2):
+                    self.addLink(self.AggSwitchList[y], self.Edge[z])
+         #   self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x])
+         #   self.addLink(self.AggSwitchList[x], self.EdgeSwitchList[x+1])
+         #   self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x])
+         #   self.addLink(self.AggSwitchList[x+1], self.EdgeSwitchList[x+1])
 
         logger.debug("Create Edge to Host")
-        for x in range(0, self.iEdgeLayerSwitch):
+        for x in range(0, self._edgeLayer):
             ## limit = 2 * x + 1 
             self.addLink(self.EdgeSwitchList[x], self.HostList[2 * x])
             self.addLink(self.EdgeSwitchList[x], self.HostList[2 * x + 1])
 
 
-topos = { 'fattree1': ( lambda: HugeTopo() ) }
+topos = { 'fattree1': ( lambda: FatTree() ) }
