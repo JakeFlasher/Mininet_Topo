@@ -24,8 +24,8 @@ class Fattree(Topo):
         self._Host = self._EdgeLayer * density
         #Init Topo
         Topo.__init__(self)
-	self.createTopo()
-	self.createLink()
+    	self.createTopo()
+    	self.createLink()
 
     def createTopo(self):
         self.createCoreLayer(self._CoreLayer)
