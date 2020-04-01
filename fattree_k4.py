@@ -69,3 +69,7 @@ class Fattree(Topo):
                 self.addLink(self.EdgeSwitchList[x],self.HostList[self._density * x + i])
 
 topos = { 'fattree': ( lambda: Fattree() ) }
+
+def simpleTest():
+    topo = Fattree()
+    net = Mininet(topo. controller=RemoteControlloer,host=CPU
