@@ -189,11 +189,11 @@ class NetworkAwareness(app_manager.RyuApp):
         if result:  # host record in access table.
             datapath_dst, out_port = result[0], result[1]
 
-            datapath_1 = self.datapaths[datapath_dst]
-            out = self._build_packet_out(datapath_1, ofproto.OFP_NO_BUFFER,
+            datapath_res = self.datapaths[datapath_dst]
+            out = self._build_packet_out(datapath_res, ofproto.OFP_NO_BUFFER,
                                          ofproto.OFPP_CONTROLLER,
                                          out_port, msg.data)
-            datapath_1.send_msg(out)
+            datapath_res.send_msg(out)
             self.logger.debug("Reply ARP to knew host")
         else:
             self.flood(msg)

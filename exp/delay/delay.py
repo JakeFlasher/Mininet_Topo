@@ -57,8 +57,6 @@ class NetworkAwareness(app_manager.RyuApp):
 
         self.discover_thread = hub.spawn(self._discover)
 
-    # self.detect_thread = hub.spawn(self._detector)
-
     def _discover(self):
         i = 0
         while True:
@@ -67,35 +65,31 @@ class NetworkAwareness(app_manager.RyuApp):
             self.show_topology()
             hub.sleep(2)
 
-    def show_topology(self):
-        return
-
     def _detector(self):
         self.create_link_delay()
         self.shortest_paths = {}
-        # print "Refresh the shortest_paths"
-
-        # self.show_delay_statis()
-        # self._send_echo_request()
-        # hub.sleep(setting.DELAY_DETECTING_PERIOD)
+        print "Refresh the shortest_paths"
+        self.show_delay_statis()
+        self._send_echo_request()
+        hub.sleep(setting.DELAY_DETECTING_PERIOD)
 
     def show_delay_statis(self):
         print
         self.graph.edges()
         if setting.TOSHOW:
-            # print "\nsrc   dst      delay"
-            # ssprint "---------------------------"
+            print "\nsrc   dst      delay"
+            ssprint "---------------------------"
             for src in self.graph:
                 for dst in self.graph[src]:
                     if (src, dst) in self.graph.edges():
                         print
                         self.delay[src][dst]
-                    """print "src="
+                    print "src="
                     print src 
                     print dst
                     print "delay = "
-                    print delay"""
-                    # self.logger.info("%s<-->%s : %s" % (src, dst, delay))
+                    print delay
+                    self.logger.info("%s<-->%s : %s" % (src, dst, delay))
 
     def _send_echo_request(self):
         for datapath in self.datapaths.values():
@@ -115,11 +109,11 @@ class NetworkAwareness(app_manager.RyuApp):
             re_delay = self.lldpdelay[dst][src]
             src_latency = self.echo_latency[src]
             dst_latency = self.echo_latency[dst]
-            """print "data"
+            print "data"
             print fwd_delay
             print re_delay
             print src_latency
-            print dst_latency"""
+            print dst_latency
 
             delay = (fwd_delay + re_delay - src_latency - dst_latency) / 2
             return max(delay, 0)
@@ -127,7 +121,7 @@ class NetworkAwareness(app_manager.RyuApp):
             return float('inf')
 
     def create_link_delay(self):
-        # print "create link delay"
+        print "create link delay"
         try:
             for src in self.graph:
                 for dst in self.graph[src]:
@@ -146,7 +140,7 @@ class NetworkAwareness(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         msg = ev.msg
-        # self.logger.info("switch:%s connected", datapath.id)
+        self.logger.info("switch:%s connected", datapath.id)
 
         # install table-miss flow entry
         match = parser.OFPMatch()
@@ -232,7 +226,7 @@ class NetworkAwareness(app_manager.RyuApp):
         self.create_interior_links(links)
         self.create_access_ports()
         self.get_weight(links)
-        # self.get_graph(self.link_to_port.keys())
+        self.get_graph(self.link_to_port.keys())
 
     def flood(self, msg):
         datapath = msg.datapath
@@ -455,12 +449,12 @@ class NetworkAwareness(app_manager.RyuApp):
         if l > 1:
             i = 0
             while i + 1 < l:
-                # print "path[i + 1]"
-                # print path[i + 1]
+                print "path[i + 1]"
+                print path[i + 1]
                 re = re + self.get_dalay(path[i], path[i + 1])
                 re = re * 2;
-                # print "delay"
-                # print self.get_dalay(path[i], path[i + 1])
+                print "delay"
+                print self.get_dalay(path[i], path[i + 1])
                 i = i + 1
             re = re + self.echo_latency[-1] / 2
         re = re + self.echo_latency[0] / 2
@@ -476,10 +470,10 @@ class NetworkAwareness(app_manager.RyuApp):
             i = 0
             while i + 1 < l:
                 # print "path[i + 1]"
-                # print path[i + 1]
+                print path[i + 1]
                 re = re + self.graph.get_edge_data(path[i], path[i + 1])['weight']
-                # print "delay"
-                # print self.graph.get_edge_data(path[i], path[i + 1])['weight']
+                print "delay"
+                print self.graph.get_edge_data(path[i], path[i + 1])['weight']
                 i = i + 1
             re = re + self.echo_latency[path[-1]] / 2
             # print "echo -1"
