@@ -15,15 +15,11 @@ from ryu.lib.packet import ethernet
 from ryu.lib.packet import ipv4
 from ryu.lib.packet import arp
 from ryu.lib import hub
-from ryu.base.app_manager import lookup_service_brick
-import time
-
 from collections import defaultdict
-from ryu.topology import event
+
+from ryu.topology import event, switches
 from ryu.topology.api import get_all_switch, get_all_link, get_switch, get_link
 import setting
-from ryu.topology.switches import LLDPPacket
-from ryu.topology.switches import Switches
 
 
 class NetworkAwareness(app_manager.RyuApp):
@@ -49,96 +45,18 @@ class NetworkAwareness(app_manager.RyuApp):
         self.datapaths = {}
         self.arp_num = 0
         self.n = 0
-        self.delay = defaultdict(dict)
-        self.lldpdelay = defaultdict(dict)
-        self.echo_latency = defaultdict(float)
-
-        self.switches_object = None
 
         self.discover_thread = hub.spawn(self._discover)
-
-    # self.detect_thread = hub.spawn(self._detector)
 
     def _discover(self):
         i = 0
         while True:
-            self._detector()
-            self.get_topology(None)
             self.show_topology()
-            hub.sleep(2)
-
-    def show_topology(self):
-        return
-
-    def _detector(self):
-        self.create_link_delay()
-        self.shortest_paths = {}
-        # print "Refresh the shortest_paths"
-
-        # self.show_delay_statis()
-        # self._send_echo_request()
-        # hub.sleep(setting.DELAY_DETECTING_PERIOD)
-
-    def show_delay_statis(self):
-        print
-        self.graph.edges()
-        if setting.TOSHOW:
-            # print "\nsrc   dst      delay"
-            # ssprint "---------------------------"
-            for src in self.graph:
-                for dst in self.graph[src]:
-                    if (src, dst) in self.graph.edges():
-                        print
-                        self.delay[src][dst]
-                    """print "src="
-                    print src 
-                    print dst
-                    print "delay = "
-                    print delay"""
-                    # self.logger.info("%s<-->%s : %s" % (src, dst, delay))
-
-    def _send_echo_request(self):
-        for datapath in self.datapaths.values():
-            parser = datapath.ofproto_parser
-            data = "%.6f" % time.time()
-            echo_req = parser.OFPEchoRequest(datapath, data=data)
-            datapath.send_msg(echo_req)
-
-    @set_ev_cls(ofp_event.EventOFPEchoReply, MAIN_DISPATCHER)
-    def echo_reply_handler(self, ev):
-        latency = time.time() - eval(ev.msg.data)
-        self.echo_latency[ev.msg.datapath.id] = latency
-
-    def get_dalay(self, src, dst):
-        try:
-            fwd_delay = self.lldpdelay[src][dst]
-            re_delay = self.lldpdelay[dst][src]
-            src_latency = self.echo_latency[src]
-            dst_latency = self.echo_latency[dst]
-            """print "data"
-            print fwd_delay
-            print re_delay
-            print src_latency
-            print dst_latency"""
-
-            delay = (fwd_delay + re_delay - src_latency - dst_latency) / 2
-            return max(delay, 0)
-        except:
-            return float('inf')
-
-    def create_link_delay(self):
-        # print "create link delay"
-        try:
-            for src in self.graph:
-                for dst in self.graph[src]:
-                    if src == dst:
-                        self.delay[src][dst] = 0
-                        continue
-                    delay = self.get_dalay(src, dst)
-                    self.delay[src][dst] = delay
-        except:
-            return
-        return
+            if (i == 5):
+                self.get_topology(None)
+                i = 0
+            i = i + 1
+            hub.sleep(1)
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -214,25 +132,39 @@ class NetworkAwareness(app_manager.RyuApp):
             data=msg_data, in_port=src_port, actions=actions)
         return out
 
-    def get_weight(self, links):
-        for link in links:
-            src = link.src
-            dst = link.dst
-            delay = self.get_dalay(src.dpid, dst.dpid)
-            if delay != float('inf'):
-                self.graph.add_edge(src.dpid, dst.dpid, weight=delay)
+    def get_graph(self, link_list):
+        for src in self.switches:
+            for dst in self.switches:
+                # self.graph.add_edge(src, dst, weight=float('inf'))
+                if src == dst:
+                    self.graph.add_edge(src, dst, weight=0)
+                elif (src, dst) in link_list:
+                    self.graph.add_edge(src, dst, weight=1)
+        return self.graph
 
     # @set_ev_cls(events)
     def get_topology(self, ev):
-        # print "getto"
+        j = 0
         switch_list = get_switch(self, None)
         self.create_port_map(switch_list)
         self.switches = self.switch_port_table.keys()
         links = get_link(self, None)
         self.create_interior_links(links)
         self.create_access_ports()
-        self.get_weight(links)
-        # self.get_graph(self.link_to_port.keys())
+        self.get_graph(self.link_to_port.keys())
+
+    def register_access_info(self, dpid, in_port, ip, mac):
+        if in_port in self.access_ports[dpid]:
+            if (dpid, in_port) in self.access_table:
+                if self.access_table[(dpid, in_port)] == (ip, mac):
+                    return
+                else:
+                    self.access_table[(dpid, in_port)] = (ip, mac)
+                    return
+            else:
+                self.access_table.setdefault((dpid, in_port), None)
+                self.access_table[(dpid, in_port)] = (ip, mac)
+                return
 
     def flood(self, msg):
         datapath = msg.datapath
@@ -247,6 +179,7 @@ class NetworkAwareness(app_manager.RyuApp):
                         datapath, ofproto.OFP_NO_BUFFER,
                         ofproto.OFPP_CONTROLLER, port, msg.data)
                     datapath.send_msg(out)
+        self.logger.debug("Flooding msg")
 
     def arp_forwarding(self, msg, src_ip, dst_ip):
         datapath = msg.datapath
@@ -261,6 +194,7 @@ class NetworkAwareness(app_manager.RyuApp):
                                          ofproto.OFPP_CONTROLLER,
                                          out_port, msg.data)
             datapath_1.send_msg(out)
+            self.logger.debug("Reply ARP to knew host")
         else:
             self.flood(msg)
 
@@ -282,13 +216,7 @@ class NetworkAwareness(app_manager.RyuApp):
         return src_sw, dst_sw
 
     def get_path(self, src, dst):
-        self._detector()
-        try:
-            return nx.dijkstra_path(self.graph, src, dst)
-        except:
-            print
-            "No path"
-            return None
+        return nx.shortest_path(self.graph, src, dst, 1)
 
     def create_port_map(self, switch_list):
         for sw in switch_list:
@@ -350,19 +278,6 @@ class NetworkAwareness(app_manager.RyuApp):
                         dst_port = key[1]
                         return dst_port
         return None
-
-    def register_access_info(self, dpid, in_port, ip, mac):
-        if in_port in self.access_ports[dpid]:
-            if (dpid, in_port) in self.access_table:
-                if self.access_table[(dpid, in_port)] == (ip, mac):
-                    return
-                else:
-                    self.access_table[(dpid, in_port)] = (ip, mac)
-                    return
-            else:
-                self.access_table.setdefault((dpid, in_port), None)
-                self.access_table[(dpid, in_port)] = (ip, mac)
-                return
 
     def install_flow(self, datapaths, link_to_port, access_table, path,
                      flow_info, buffer_id, data=None):
@@ -436,12 +351,7 @@ class NetworkAwareness(app_manager.RyuApp):
             src_sw, dst_sw = result[0], result[1]
             if dst_sw:
                 path = self.get_path(src_sw, dst_sw)
-                if path is None:
-                    return
-                print
-                "printing path"
                 self.logger.info("[PATH]%s<-->%s: %s" % (ip_src, ip_dst, path))
-                self.print_total_delay2(path)
                 flow_info = (eth_type, ip_src, ip_dst, in_port)
                 self.install_flow(self.datapaths,
                                   self.link_to_port,
@@ -449,45 +359,8 @@ class NetworkAwareness(app_manager.RyuApp):
                                   flow_info, msg.buffer_id, msg.data)
         return
 
-    def print_total_delay(self, path):
-        l = len(path)
-        re = 0.0
-        if l > 1:
-            i = 0
-            while i + 1 < l:
-                # print "path[i + 1]"
-                # print path[i + 1]
-                re = re + self.get_dalay(path[i], path[i + 1])
-                re = re * 2;
-                # print "delay"
-                # print self.get_dalay(path[i], path[i + 1])
-                i = i + 1
-            re = re + self.echo_latency[-1] / 2
-        re = re + self.echo_latency[0] / 2
-        print
-        "total delay ="
-        print
-        re
-
-    def print_total_delay2(self, path):
-        l = len(path)
-        re = 0.0
-        if l > 1:
-            i = 0
-            while i + 1 < l:
-                # print "path[i + 1]"
-                # print path[i + 1]
-                re = re + self.graph.get_edge_data(path[i], path[i + 1])['weight']
-                # print "delay"
-                # print self.graph.get_edge_data(path[i], path[i + 1])['weight']
-                i = i + 1
-            re = re + self.echo_latency[path[-1]] / 2
-            # print "echo -1"
-            # print self.echo_latency[-1] / 2
-            # re = re +  self.echo_latency[0] / 2
-            # print "echo 0"
-        re = re + self.echo_latency[path[0]] / 2
-        self.logger.info("total delay = %d ms" % (re * 1000))
+    def show_topology(self):
+        self.n = self.n + 1
 
     def _packet_in_handler_2(self, ev):
         msg = ev.msg
@@ -509,25 +382,8 @@ class NetworkAwareness(app_manager.RyuApp):
             # record the access info
             self.register_access_info(datapath.id, in_port, arp_src_ip, mac)
 
-    def _lldp_handler(self, ev):
-        msg = ev.msg
-        dpid = msg.datapath.id
-        src_dpid = None
-        src_port_no = None
-        try:
-            src_dpid, src_port_no = LLDPPacket.lldp_parse(msg.data)
-
-        except:
-            return
-        if self.switches_object is None:
-            self.switches_object = lookup_service_brick('switches')
-        for port in self.switches_object.ports.keys():
-            if src_dpid == port.dpid and src_port_no == port.port_no:
-                self.lldpdelay[src_dpid][dpid] = self.switches_object.ports[port].delay
-
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
-        self._lldp_handler(ev)
         self._packet_in_handler_2(ev)
         msg = ev.msg
         datapath = msg.datapath
