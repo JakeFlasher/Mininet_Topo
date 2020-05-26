@@ -1,0 +1,3 @@
+[submodule "BEADS"]
+	path = BEADS
+	url = https://gitee.com/jakeflasher/BEADS.git
